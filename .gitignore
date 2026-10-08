@@ -1,0 +1,12 @@
+build/
+install/
+log/
+.colcon/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.vscode/
+*.db
+*.db-shm
+*.db-wal
