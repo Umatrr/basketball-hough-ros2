@@ -21,6 +21,8 @@ ros2 launch basketball_cv basketball_system.launch.py params_file:=/absolute/pat
 
 默认参数见 [`params.yaml`](src/basketball_cv/config/params.yaml)。修改后重启 launch。按 Ctrl+C 结束。
 
+想按代码执行顺序理解三个节点、霍夫变换、候选评分和消息流，可阅读[完整代码逻辑](docs/code-walkthrough.md)。
+
 ## 检测步骤
 
 1. 读取 BGR 图像，转灰度并高斯模糊，减轻球面纹理和噪声干扰。
