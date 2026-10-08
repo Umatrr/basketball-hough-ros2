@@ -39,3 +39,18 @@ def test_no_circle():
     circle, mask = find_basketball(blank, CircleConfig())
     assert circle is None
     assert not np.any(mask)
+
+
+def test_ball_wins_over_similarly_colored_face():
+    """A real circular outline should outrank an orange oval face."""
+    image = make_ball((440, 240), 90)
+    cv2.ellipse(image, (140, 230), (70, 95), 0, 0, 360,
+                (80, 145, 200), -1)
+    cv2.ellipse(image, (140, 230), (70, 95), 0, 0, 360,
+                (30, 45, 50), 3)
+    cv2.circle(image, (115, 210), 9, (20, 20, 20), -1)
+    cv2.circle(image, (165, 210), 9, (20, 20, 20), -1)
+
+    circle, _ = find_basketball(image, CircleConfig())
+    assert circle is not None
+    assert abs(circle.x - 440) < 10
