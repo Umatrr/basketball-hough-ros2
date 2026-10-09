@@ -48,4 +48,6 @@ ros2 launch basketball_cv basketball_system.launch.py params_file:=/absolute/pat
 
 `dp` 控制霍夫累加器分辨率，`min_dist` 控制候选圆心之间的最小距离。HSV 的 `h_min/h_max` 为色相范围，`s_min` 排除灰白区域，`v_min/v_max` 排除过暗和过亮区域。查看 `/basketball/mask` 可判断颜色参数是否适合当前光线。
 
+当前 HSV 起始范围是 `H=5..22`、`S=115..255`、`V=40..205`：它偏向较鲜艳、不过亮的橙色，用来减少手部和浅橙高亮背景的干扰。OpenCV 中 H 的范围是 `0..179`，S/V 的范围是 `0..255`；这些数值不是 RGB 通道值，也不是百分比。详细的数值与肉眼颜色对应关系见[完整代码逻辑](docs/code-walkthrough.md#hsv-数值和肉眼颜色的对应关系)。
+
 检测算法在 [`circle_detection.py`](src/basketball_cv/basketball_cv/circle_detection.py)；ROS 节点在 [`detector_node.py`](src/basketball_cv/basketball_cv/detector_node.py)。摄像头和显示节点保留独立进程，由 [`basketball_system.launch.py`](src/basketball_cv/launch/basketball_system.launch.py) 一次启动。

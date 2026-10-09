@@ -18,17 +18,19 @@ basketball_detector:
     blur_kernel: 7      # 高斯模糊核，自动转为不小于 3 的奇数。
 
     # HSV 只用于验证候选圆，不参与找圆。
-    h_min: 3
-    h_max: 25
-    s_min: 85
-    v_min: 35
-    v_max: 220
+    # H 使用 OpenCV 的 0..179 标度；S/V 使用 0..255 标度。
+    # 当前范围偏向饱和的橙色，压制手部和浅橙背景的低饱和亮色。
+    h_min: 5
+    h_max: 22
+    s_min: 115
+    v_min: 40
+    v_max: 205
 
     # 验证：分别满足下限，再按 65% 圆周 + 35% 颜色评分。
-    min_color_fraction: 0.28   # 暗色缝线多时可降低。
+    min_color_fraction: 0.35   # 暗色缝线多时可降回 0.28~0.32。
     min_edge_fraction: 0.18    # 人脸误检时可提高。
     min_visible_fraction: 0.55 # 允许近距离篮球被画面截断。
-    min_score: 0.40            # 接受阈值，范围 0..1。
+    min_score: 0.50            # 接受阈值，范围 0..1；过滤 0.3~0.4 的噪声。
 
 basketball_display:
   ros__parameters:

@@ -18,15 +18,16 @@ class CircleConfig:
     min_radius: int = 18
     max_radius: int = 0
     blur_kernel: int = 7
-    h_min: int = 3
-    h_max: int = 25
-    s_min: int = 85
-    v_min: int = 35
-    v_max: int = 220
-    min_color_fraction: float = 0.28
+    # 只保留较饱和、不过亮的橙色，降低手部和浅橙背景的通过率。
+    h_min: int = 5
+    h_max: int = 22
+    s_min: int = 115
+    v_min: int = 40
+    v_max: int = 205
+    min_color_fraction: float = 0.35
     min_edge_fraction: float = 0.18
     min_visible_fraction: float = 0.55
-    min_score: float = 0.40
+    min_score: float = 0.50
 
 
 @dataclass(frozen=True)
