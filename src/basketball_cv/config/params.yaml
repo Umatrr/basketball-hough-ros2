@@ -17,18 +17,10 @@ basketball_detector:
     max_radius: 0       # 0 表示不限；近距离大球可保持 0。
     blur_kernel: 7      # 高斯模糊核，自动转为不小于 3 的奇数。
 
-    # HSV 只用于验证候选圆，不参与找圆。
-    h_min: 3
-    h_max: 25
-    s_min: 85
-    v_min: 35
-    v_max: 220
-
-    # 验证：分别满足下限，再按 65% 圆周 + 35% 颜色评分。
-    min_color_fraction: 0.28   # 暗色缝线多时可降低。
-    min_edge_fraction: 0.18    # 人脸误检时可提高。
+    # 纯霍夫测试版不使用 HSV；以下只验证圆周几何边缘。
+    min_edge_fraction: 0.18    # 圆周边缘支持率下限。
     min_visible_fraction: 0.55 # 允许近距离篮球被画面截断。
-    min_score: 0.40            # 接受阈值，范围 0..1。
+    min_score: 0.18            # score=edge_fraction，不含颜色权重。
 
 basketball_display:
   ros__parameters:
