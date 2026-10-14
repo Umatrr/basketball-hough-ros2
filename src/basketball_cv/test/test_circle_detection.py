@@ -1,10 +1,12 @@
 """Check representative detection cases without ROS or a physical camera."""
 
-from basketball_cv.circle_detection import CircleConfig, find_basketball
+from dataclasses import replace
 
 import cv2
 
 import numpy as np
+
+from basketball_cv.circle_detection import CircleConfig, find_basketball
 
 
 def make_ball(center, radius):
@@ -31,6 +33,8 @@ def test_dark_seams_and_cropped_close_ball():
         assert abs(circle.y - center[1]) < 10
         assert abs(circle.radius - radius) < 15
         assert mask.shape == (480, 640)
+        assert 0.0 <= circle.edge_score <= 1.0
+        assert 0.0 <= circle.color_score <= 1.0
 
 
 def test_no_circle():
@@ -39,6 +43,17 @@ def test_no_circle():
     circle, mask = find_basketball(blank, CircleConfig())
     assert circle is None
     assert not np.any(mask)
+
+
+def test_debug_keeps_candidate_that_fails_color_gate():
+    """Debug data exposes a geometric candidate rejected by color threshold."""
+
+    config = replace(CircleConfig(), min_color_fraction=1.01)
+    circle, _ = find_basketball(make_ball((320, 240), 105), config)
+    assert circle is not None
+    assert not circle.accepted
+    assert circle.edge_score > 0
+    assert circle.color_score > 0
 
 
 def test_ball_wins_over_similarly_colored_face():

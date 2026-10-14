@@ -13,6 +13,23 @@ source install/setup.bash
 ros2 launch basketball_cv basketball_system.launch.py
 ```
 
+调试亮环境分支时使用专用 launch：
+
+```bash
+ros2 launch basketball_cv basketball_debug.launch.py
+```
+
+它会降低日志频率并打开两个窗口：`Basketball Display` 显示候选霍夫圆、圆周分数、颜色分数和最终分数；`Basketball Mask Debug` 显示 HSV mask。可用 `debug_hough_min_score` 和 `debug_mask_min_color_score` 控制低分候选是否绘制：
+
+```bash
+ros2 launch basketball_cv basketball_debug.launch.py \
+  debug_log_period:=0.5 \
+  debug_hough_min_score:=0.30 \
+  debug_mask_min_color_score:=0.20
+```
+
+调试窗口中的 `edge` 是圆周边缘支持率，`color` 是候选圆内部 HSV 命中比例，`total` 是 `0.65 × edge + 0.35 × color`。最终是否发布为 `detected=true` 还要同时满足两个中间阈值和 `min_score`。
+
 自定义参数文件：
 
 ```bash

@@ -2,6 +2,32 @@
 
 本文按一帧图像从摄像头到显示窗口的实际执行顺序解释代码。对应的工作空间是 `basketball_ws_hough`；运行命令和快速调参见 [README](../README.md)。文中的片段摘自当前实现，省略了与该步骤无关的行；以源码为准。
 
+## 调试模式：拆开两个中间分数
+
+亮环境版本提供 `basketball_debug.launch.py`。它不改变检测算法，只打开诊断输出：
+
+```bash
+ros2 launch basketball_cv basketball_debug.launch.py \
+  debug_log_period:=0.5 \
+  debug_hough_min_score:=0.30 \
+  debug_mask_min_color_score:=0.20
+```
+
+检测消息现在额外包含 `edge_score` 和 `color_score`。日志每隔 `debug_log_period` 秒输出一次：
+
+```text
+candidate edge=0.61 color=0.08 total=0.42 accepted=False
+```
+
+`accepted=False` 并不表示没有候选圆，而是表示当前候选没有同时满足 `min_edge_fraction`、`min_color_fraction` 和 `min_score`。调试模式会保留最高分的未通过候选，让墙面阴影这类噪声也能显示中间量；正常检测仍只把通过门槛的候选发布为 `detected=true`。
+
+两个窗口分别用于定位噪声：
+
+1. `Basketball Display` 在原图上画候选霍夫圆，并显示 `edge`、`color`、`total` 和 `accepted`。
+2. `Basketball Mask Debug` 显示 HSV mask。`debug_mask_min_color_score` 低于阈值时将 mask 置黑并标注原因，避免把低颜色证据误看成有效颜色区域。
+
+判断方法：圆周清晰但 mask 几乎全黑，说明颜色验证或 HSV 范围造成问题；mask 白色很多但 `edge` 很低，说明颜色相似区域不是篮球形状；两个中间分数都一般但 `total` 超过阈值，说明权重或阈值需要重新标定。调试时建议降低显示阈值，但不要直接降低正式检测的 `min_score`。若没有霍夫候选，日志会输出 `candidate=none`，此时应先检查 `param1/param2`、模糊程度和半径范围。
+
 ## 1. 先看整体：三个节点和一个接口包
 
 ```mermaid
@@ -278,6 +304,8 @@ result.center_x = circle.x
 result.center_y = circle.y
 result.radius = circle.radius
 result.confidence = circle.score
+result.edge_score = circle.edge_score
+result.color_score = circle.color_score
 ```
 
 接口文件的字段依次是：
@@ -293,6 +321,8 @@ int32 y
 int32 width
 int32 height
 float32 confidence
+float32 edge_score
+float32 color_score
 ```
 
 `header` 让下游知道结果对应哪一帧；`center_x/center_y/radius` 描述圆，`x/y/width/height` 描述轴对齐的显示框。
@@ -353,6 +383,7 @@ cv2.putText(
 | `min_visible_fraction` | 0.55 | 圆周点至少有多少比例在画面内。 | 边缘截断的大球被筛掉时降低；极少量可见弧误检时提高。 |
 | `min_edge_fraction` | 0.18 | 可见圆周点的最低边缘命中比例。 | 肤色目标误检时提高；球外缘弱时降低。 |
 | `min_color_fraction` | 0.28 | 内圆可见区域最低橙色比例。 | 缝线、阴影多导致漏检时降低；非橙色目标误检时提高。 |
+| `edge_weight` / `color_weight` | 0.65 / 0.35 | 两个中间分数组成 `total` 时的权重。 | 调试阶段先观察分数，再决定是否改变；两者会自动归一化。 |
 | `min_score` | 0.40 | 最终规则分数下限。 | 前面各单项阈值已经合理后再调。 |
 | `display_fps` | 30.0 | 显示节点渲染频率。 | 仅影响显示刷新，不改变检测算法。 |
 

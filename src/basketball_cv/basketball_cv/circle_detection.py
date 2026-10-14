@@ -26,6 +26,8 @@ class CircleConfig:
     min_color_fraction: float = 0.28
     min_edge_fraction: float = 0.18
     min_visible_fraction: float = 0.55
+    edge_weight: float = 0.65
+    color_weight: float = 0.35
     min_score: float = 0.40
 
 
@@ -37,6 +39,9 @@ class CircleResult:
     y: float
     radius: float
     score: float
+    edge_score: float
+    color_score: float
+    accepted: bool
 
 
 def find_basketball(bgr, config):
@@ -49,6 +54,10 @@ def find_basketball(bgr, config):
         raise ValueError('radii must not be negative')
     if config.max_radius and config.max_radius < config.min_radius:
         raise ValueError('max_radius must be 0 or at least min_radius')
+    if config.edge_weight < 0 or config.color_weight < 0:
+        raise ValueError('score weights must not be negative')
+    if config.edge_weight + config.color_weight <= 0:
+        raise ValueError('at least one score weight must be positive')
 
     # 1. 模糊灰度图，压低球面纹理、缝线及传感器噪声对霍夫投票的影响。
     blur_size = max(3, int(config.blur_kernel) | 1)
@@ -77,6 +86,7 @@ def find_basketball(bgr, config):
     edges = cv2.dilate(edges, np.ones((5, 5), np.uint8))
     height, width = gray.shape
     best = None
+    best_accepted = None
     for x, y, radius in circles[0]:
         x, y, radius = float(x), float(y), float(radius)
         samples = max(120, int(2 * np.pi * radius / 2))
@@ -87,9 +97,6 @@ def find_basketball(bgr, config):
         if np.mean(visible) < config.min_visible_fraction:
             continue
         edge_fraction = np.mean(edges[py[visible], px[visible]] > 0)
-        if edge_fraction < config.min_edge_fraction:
-            continue
-
         # 只统计圆内部 85% 的区域，避开边界抗锯齿和背景。
         inner_radius = radius * 0.85
         x0 = max(0, int(x - inner_radius))
@@ -101,12 +108,26 @@ def find_basketball(bgr, config):
         if not np.any(inside):
             continue
         color_fraction = np.mean(color_mask[y0:y1, x0:x1][inside] > 0)
-        if color_fraction < config.min_color_fraction:
-            continue
+        total_weight = config.edge_weight + config.color_weight
+        score = (
+            config.edge_weight * edge_fraction
+            + config.color_weight * color_fraction
+        ) / total_weight
+        accepted = (
+            edge_fraction >= config.min_edge_fraction
+            and color_fraction >= config.min_color_fraction
+            and score >= config.min_score
+        )
+        candidate = CircleResult(
+            x, y, radius, float(score), float(edge_fraction),
+            float(color_fraction), accepted,
+        )
+        if best is None or candidate.score > best.score:
+            best = candidate
+        if accepted and (
+            best_accepted is None or candidate.score > best_accepted.score
+        ):
+            best_accepted = candidate
 
-        # 圆周证据权重更高，肤色相近的人脸仅凭颜色无法取得高分。
-        score = 0.65 * edge_fraction + 0.35 * color_fraction
-        if score >= config.min_score and (best is None or score > best.score):
-            best = CircleResult(x, y, radius, float(score))
-
-    return best, color_mask
+    # 正常输出优先使用通过全部门槛的候选；debug 模式仍可看到未通过的最高候选。
+    return best_accepted or best, color_mask

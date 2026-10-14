@@ -28,8 +28,15 @@ basketball_detector:
     min_color_fraction: 0.28   # 暗色缝线多时可降低。
     min_edge_fraction: 0.18    # 人脸误检时可提高。
     min_visible_fraction: 0.55 # 允许近距离篮球被画面截断。
+    edge_weight: 0.65          # 最终分数中圆周边缘的权重。
+    color_weight: 0.35         # 最终分数中颜色比例的权重。
     min_score: 0.40            # 接受阈值，范围 0..1。
+    debug_enabled: false
+    debug_log_period: 1.0
 
 basketball_display:
   ros__parameters:
     display_fps: 30.0
+    debug_enabled: false
+    debug_hough_min_score: 0.0
+    debug_mask_min_color_score: 0.0

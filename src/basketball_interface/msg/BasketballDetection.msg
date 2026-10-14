@@ -12,3 +12,7 @@ int32 width
 int32 height
 
 float32 confidence
+
+# 中间评分：用于 debug 模式定位颜色或圆周边缘造成的误差。
+float32 edge_score
+float32 color_score
