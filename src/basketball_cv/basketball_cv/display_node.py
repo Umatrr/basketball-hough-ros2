@@ -85,6 +85,7 @@ class BasketballDisplay(Node):
         # debug 时允许显示“候选但未通过最终门槛”的圆，方便定位误差来源。
         show_candidate = (
             debug and det is not None
+            and det.radius > 0
             and det.confidence >= float(
                 self.get_parameter('debug_hough_min_score').value
             )
