@@ -113,7 +113,7 @@ def find_basketball(bgr, config):
             config.edge_weight * edge_fraction
             + config.color_weight * color_fraction
         ) / total_weight
-        accepted = (
+        accepted = bool(
             edge_fraction >= config.min_edge_fraction
             and color_fraction >= config.min_color_fraction
             and score >= config.min_score

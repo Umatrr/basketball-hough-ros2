@@ -50,7 +50,8 @@ class BasketballDetector(Node):
 
         result = BasketballDetection()
         result.header = msg.header
-        result.detected = circle is not None and circle.accepted
+        # ROS 2 生成的消息转换器要求原生 Python bool，不能传 numpy.bool_。
+        result.detected = bool(circle is not None and circle.accepted)
         if circle is not None:
             result.center_x = circle.x
             result.center_y = circle.y
