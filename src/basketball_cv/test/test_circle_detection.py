@@ -2,17 +2,18 @@
 
 from dataclasses import replace
 
+from basketball_cv.circle_detection import CircleConfig, find_basketball
+
 import cv2
 
 import numpy as np
-
-from basketball_cv.circle_detection import CircleConfig, find_basketball
 
 
 def make_ball(center, radius):
     """Draw an orange ball with dark seams against a plain background."""
     image = np.full((480, 640, 3), 60, dtype=np.uint8)
-    cv2.circle(image, center, radius, (30, 100, 180), -1)
+    # HSV 约为 H=11, S=193, V=145，接近棕红篮球而非浅橙色。
+    cv2.circle(image, center, radius, (35, 75, 145), -1)
     cv2.circle(image, center, radius, (15, 30, 40), 4)
     for angle in (0, 45, 90, 135):
         theta = np.deg2rad(angle)
@@ -47,7 +48,6 @@ def test_no_circle():
 
 def test_debug_keeps_candidate_that_fails_color_gate():
     """Debug data exposes a geometric candidate rejected by color threshold."""
-
     config = replace(CircleConfig(), min_color_fraction=1.01)
     circle, _ = find_basketball(make_ball((320, 240), 105), config)
     assert circle is not None

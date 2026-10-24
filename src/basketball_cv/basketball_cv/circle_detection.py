@@ -18,16 +18,19 @@ class CircleConfig:
     min_radius: int = 18
     max_radius: int = 0
     blur_kernel: int = 7
-    h_min: int = 3
-    h_max: int = 25
-    s_min: int = 85
-    v_min: int = 35
-    v_max: int = 220
-    min_color_fraction: float = 0.28
-    min_edge_fraction: float = 0.18
+    # 亮环境样本：篮球偏棕红、饱和度较高，手臂通常更亮且饱和度较低。
+    h_min: int = 0
+    h_max: int = 12
+    s_min: int = 125
+    v_min: int = 25
+    v_max: int = 150
+    min_color_fraction: float = 0.30
+    min_edge_fraction: float = 0.30
+    min_arc_bins: int = 5
+    min_arc_bin_fraction: float = 0.08
     min_visible_fraction: float = 0.55
-    edge_weight: float = 0.65
-    color_weight: float = 0.35
+    edge_weight: float = 0.50
+    color_weight: float = 0.50
     min_score: float = 0.40
 
 
@@ -96,7 +99,24 @@ def find_basketball(bgr, config):
         visible = (px >= 0) & (px < width) & (py >= 0) & (py < height)
         if np.mean(visible) < config.min_visible_fraction:
             continue
-        edge_fraction = np.mean(edges[py[visible], px[visible]] > 0)
+        support = edges[py[visible], px[visible]] > 0
+        edge_fraction = float(np.mean(support))
+        # 将圆周分成 8 个角度区间，要求边缘分布在多个区间。
+        # 这样墙面上的单条弧形阴影不会仅凭一段边缘通过。
+        visible_angles = angles[visible]
+        bins = np.floor(
+            (visible_angles + np.pi) / (2 * np.pi) * 8
+        ).astype(int) % 8
+        occupied_bins = 0
+        for index in range(8):
+            bin_support = support[bins == index]
+            if (
+                bin_support.size > 0
+                and np.mean(bin_support) >= config.min_arc_bin_fraction
+            ):
+                occupied_bins += 1
+        if occupied_bins < config.min_arc_bins:
+            continue
         # 只统计圆内部 85% 的区域，避开边界抗锯齿和背景。
         inner_radius = radius * 0.85
         x0 = max(0, int(x - inner_radius))

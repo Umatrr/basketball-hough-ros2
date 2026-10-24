@@ -17,19 +17,22 @@ basketball_detector:
     max_radius: 0       # 0 表示不限；近距离大球可保持 0。
     blur_kernel: 7      # 高斯模糊核，自动转为不小于 3 的奇数。
 
-    # HSV 只用于验证候选圆，不参与找圆。
-    h_min: 3
-    h_max: 25
-    s_min: 85
-    v_min: 35
-    v_max: 220
+    # 从实拍样本收紧：篮球棕红且较饱和，手臂更亮、饱和度分布更低。
+    # H 是 OpenCV 0..179；S/V 是 0..255。
+    h_min: 0
+    h_max: 12
+    s_min: 125
+    v_min: 25
+    v_max: 150
 
-    # 验证：分别满足下限，再按 65% 圆周 + 35% 颜色评分。
-    min_color_fraction: 0.28   # 暗色缝线多时可降低。
-    min_edge_fraction: 0.18    # 人脸误检时可提高。
+    # 先做几何门槛，再按 65% 圆周 + 35% 颜色评分。
+    min_color_fraction: 0.30   # 缝线多时可降到 0.25~0.28。
+    min_edge_fraction: 0.30    # 提高，拒绝墙面只有一段弧线的候选。
+    min_arc_bins: 5             # 8 个圆周区间至少有 5 个出现边缘。
+    min_arc_bin_fraction: 0.08 # 每个区间至少 8% 的点是边缘。
     min_visible_fraction: 0.55 # 允许近距离篮球被画面截断。
-    edge_weight: 0.65          # 最终分数中圆周边缘的权重。
-    color_weight: 0.35         # 最终分数中颜色比例的权重。
+    edge_weight: 0.50          # 降低单独圆弧噪声对最终分数的影响。
+    color_weight: 0.50         # 与颜色证据同等权重，避免阴影单独抬分。
     min_score: 0.40            # 接受阈值，范围 0..1。
     debug_enabled: false
     debug_log_period: 1.0
