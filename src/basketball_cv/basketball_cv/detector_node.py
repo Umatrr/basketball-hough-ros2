@@ -102,4 +102,6 @@ def main(args=None):
         pass
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        # launch 可能已经先关闭 ROS context，避免重复 shutdown 抛出 RCLError。
+        if rclpy.ok():
+            rclpy.shutdown()
