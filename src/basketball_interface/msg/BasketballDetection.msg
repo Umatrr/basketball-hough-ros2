@@ -13,6 +13,9 @@ int32 height
 
 float32 confidence
 
+# 霍夫候选的原始加权分数。颜色门禁失败时仍保留，供 debug 分析；不代表正式检测置信度。
+float32 candidate_score
+
 # 中间评分：用于 debug 模式定位颜色或圆周边缘造成的误差。
 float32 edge_score
 float32 color_score

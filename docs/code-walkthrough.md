@@ -13,20 +13,20 @@ ros2 launch basketball_cv basketball_debug.launch.py \
   debug_mask_min_color_score:=0.20
 ```
 
-检测消息现在额外包含 `edge_score` 和 `color_score`。日志每隔 `debug_log_period` 秒输出一次：
+检测消息现在包含 `edge_score`、`color_score` 和供诊断使用的 `candidate_score`。日志每隔 `debug_log_period` 秒输出一次：
 
 ```text
-candidate edge=0.61 color=0.08 total=0.42 accepted=False
+candidate edge=0.61 color=0.08 candidate=0.35 confidence=0.00 accepted=False reason=color_gate
 ```
 
 `accepted=False` 并不表示没有候选圆，而是表示当前候选没有同时满足 `min_edge_fraction`、`min_color_fraction` 和 `min_score`。调试模式会保留最高分的未通过候选，让墙面阴影这类噪声也能显示中间量；正常检测仍只把通过门槛的候选发布为 `detected=true`。
 
-两个窗口分别用于定位噪声：
+颜色门禁失败时，霍夫候选仍会保留在 `candidate_score` 中用于定位噪声，但不会进入正式置信度。两个窗口分别用于定位噪声：
 
-1. `Basketball Display` 在原图上画候选霍夫圆，并显示 `edge`、`color`、`total` 和 `accepted`。
+1. `Basketball Display` 在原图上画候选霍夫圆，并显示 `edge`、`color`、`candidate`、`confidence` 和 `accepted`。
 2. `Basketball Mask Debug` 显示 HSV mask。`debug_mask_min_color_score` 低于阈值时将 mask 置黑并标注原因，避免把低颜色证据误看成有效颜色区域。
 
-判断方法：圆周清晰但 mask 几乎全黑，说明颜色验证或 HSV 范围造成问题；mask 白色很多但 `edge` 很低，说明颜色相似区域不是篮球形状；两个中间分数都一般但 `total` 超过阈值，说明权重或阈值需要重新标定。调试时建议降低显示阈值，但不要直接降低正式检测的 `min_score`。若没有霍夫候选，日志会输出 `candidate=none`，此时应先检查 `param1/param2`、模糊程度和半径范围。
+判断方法：圆周清晰但 mask 几乎全黑，日志会标记 `reason=color_gate`，正式 `confidence` 为 0，说明霍夫候选被颜色硬门禁拦截；mask 白色很多但 `edge` 很低，说明颜色相似区域不是篮球形状；两个中间分数都一般但 `candidate` 超过显示阈值，仍不会绕过正式门禁。调试时建议降低显示阈值，但不要直接降低正式检测的 `min_score`。若没有霍夫候选，日志会输出 `candidate=none`，此时应先检查 `param1/param2`、模糊程度和半径范围。
 
 ## 1. 先看整体：三个节点和一个接口包
 
@@ -152,7 +152,7 @@ config = CircleConfig(**{
 circle, mask = find_basketball(bgr, config)
 ```
 
-`circle` 是最高分的 `CircleResult(x, y, radius, score)`；如果没有通过筛选的圆，则是 `None`。`mask` 是橙色 HSV 二值图。图像转换或算法抛出已处理的错误时，节点会记录日志并跳过该帧，不发布它的检测结果。
+`circle` 是最高分的 `CircleResult(x, y, radius, score)`；如果没有候选圆，则是 `None`。算法会优先返回通过门禁的最高分圆；若没有通过门禁的圆，则返回最高分未接受候选供 Debug 使用。`mask` 是橙色 HSV 二值图。图像转换或算法抛出已处理的错误时，节点会记录日志并跳过该帧，不发布它的检测结果。
 
 ## 5. 核心算法：`find_basketball` 的完整处理链
 
@@ -300,13 +300,14 @@ return best, color_mask
 
 ## 6. 检测结果如何变成 ROS 消息
 
-检测节点为每帧创建一个 `BasketballDetection`，继承原始图像的 `header`，把 `detected` 设为 `circle is not None`。有检测结果时填写：
+检测节点为每帧创建一个 `BasketballDetection`，继承原始图像的 `header`。`detected` 只有候选通过颜色、边缘和总分门禁时才为真。有候选时填写：
 
 ```python
 result.center_x = circle.x
 result.center_y = circle.y
 result.radius = circle.radius
-result.confidence = circle.score
+result.candidate_score = circle.score
+result.confidence = circle.score if circle.accepted else 0.0
 result.edge_score = circle.edge_score
 result.color_score = circle.color_score
 ```
@@ -324,6 +325,7 @@ int32 y
 int32 width
 int32 height
 float32 confidence
+float32 candidate_score
 float32 edge_score
 float32 color_score
 ```
@@ -349,7 +351,7 @@ height   = 下边界 - y
 
 显示节点分别订阅 `/camera/image_raw` 和 `/basketball/detection`。图像回调保存 `latest_image`，检测回调保存 `latest_det`。`display_fps` 决定渲染定时器频率，默认 30 帧每秒。
 
-渲染时先复制最近的图像。如果最近的检测消息 `detected=true`，就用消息中的 `x/y/width/height` 画绿色矩形，用 `center_x/center_y/radius` 画红色圆，用蓝点标圆心，再显示 `Basketball {confidence:.2f}`。否则画 `No basketball`。`cv2.imshow` 打开显示窗口，`cv2.waitKey(1)` 处理窗口事件；节点结束时销毁窗口。
+渲染时先复制最近的图像。Debug 模式下，若 `candidate_score` 超过显示阈值，即使未通过门禁也会画出候选圆，并同时显示 `candidate` 和正式 `confidence`；正式模式只显示 `detected=true` 的结果。`cv2.imshow` 打开显示窗口，`cv2.waitKey(1)` 处理窗口事件；节点结束时销毁窗口。
 
 对应的绘制调用是：
 

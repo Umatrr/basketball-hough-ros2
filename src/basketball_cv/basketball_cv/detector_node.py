@@ -64,7 +64,10 @@ class BasketballDetector(Node):
             result.height = min(
                 bgr.shape[0], int(circle.y + circle.radius) + 1
             ) - result.y
-            result.confidence = circle.score
+            # 颜色门禁是正式检测的硬条件。未通过的霍夫候选不产生正式置信度，
+            # 但保留 candidate_score 供 debug 窗口定位噪声来源。
+            result.candidate_score = float(circle.score)
+            result.confidence = float(circle.score) if circle.accepted else 0.0
             result.edge_score = circle.edge_score
             result.color_score = circle.color_score
         self.log_debug(circle)
@@ -86,10 +89,18 @@ class BasketballDetector(Node):
         if circle is None:
             self.get_logger().info('candidate=none (HoughCircles returned no candidate)')
             return
+        reason = 'accepted'
+        if circle.color_score < float(self.get_parameter('min_color_fraction').value):
+            reason = 'color_gate'
+        elif circle.edge_score < float(self.get_parameter('min_edge_fraction').value):
+            reason = 'edge_gate'
+        elif circle.score < float(self.get_parameter('min_score').value):
+            reason = 'score_gate'
         self.get_logger().info(
             f'candidate edge={circle.edge_score:.3f} '
-            f'color={circle.color_score:.3f} total={circle.score:.3f} '
-            f'accepted={circle.accepted}'
+            f'color={circle.color_score:.3f} candidate={circle.score:.3f} '
+            f'confidence={circle.score if circle.accepted else 0.0:.3f} '
+            f'accepted={circle.accepted} reason={reason}'
         )
 
 

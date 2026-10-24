@@ -28,7 +28,7 @@ ros2 launch basketball_cv basketball_debug.launch.py \
   debug_mask_min_color_score:=0.20
 ```
 
-调试窗口中的 `edge` 是圆周边缘支持率，`color` 是候选圆内部 HSV 命中比例，`total` 是 `0.50 × edge + 0.50 × color`。最终是否发布为 `detected=true` 还要同时满足两个中间阈值和 `min_score`。
+调试窗口中的 `edge` 是圆周边缘支持率，`color` 是候选圆内部 HSV 命中比例，`candidate` 是 `0.50 × edge + 0.50 × color`。颜色阈值是正式检测的硬门禁：颜色不足时 `detected=false` 且 `confidence=0`。`candidate_score` 仍保留原始候选分数，方便在 Debug 中分析墙面阴影等霍夫噪声；只有同时满足两个中间阈值和 `min_score` 才会产生正式 `confidence`。
 
 自定义参数文件：
 
@@ -46,7 +46,7 @@ ros2 launch basketball_cv basketball_system.launch.py params_file:=/absolute/pat
 2. `cv2.HoughCircles` 对边缘投票，给出圆心与半径。它不依赖橙色 mask 连通，因此深色缝线无需形态学填补。
 3. 沿候选圆周采样边缘，并检查边缘是否分布在多个圆周区间。
 4. 在圆内部 85% 范围计算橙色像素比例；通过几何门槛后按 `0.50 × 圆周支持率 + 0.50 × 橙色比例` 评分。
-5. 发布圆心、半径、裁剪到画面内的外接框、得分和带原图时间戳的 mask。
+5. 发布圆心、半径、裁剪到画面内的外接框、候选分数/正式置信度和带原图时间戳的 mask。
 
 `confidence` 是规则评分，不是经过标定的识别概率。球被画面截断太多、失焦、严重反光，或者圆周与背景对比很低时，霍夫圆可能无法检出。
 

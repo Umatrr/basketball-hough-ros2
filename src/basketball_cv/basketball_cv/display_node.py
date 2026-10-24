@@ -86,7 +86,7 @@ class BasketballDisplay(Node):
         show_candidate = (
             debug and det is not None
             and det.radius > 0
-            and det.confidence >= float(
+            and det.candidate_score >= float(
                 self.get_parameter('debug_hough_min_score').value
             )
         )
@@ -109,7 +109,8 @@ class BasketballDisplay(Node):
             cv2.putText(
                 bgr,
                 f'edge={det.edge_score:.2f} color={det.color_score:.2f} '
-                f'total={det.confidence:.2f} accepted={det.detected}',
+                f'candidate={det.candidate_score:.2f} '
+                f'confidence={det.confidence:.2f} accepted={det.detected}',
                 (x, y - 10),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.6,
